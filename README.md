@@ -222,6 +222,10 @@ kyverno.io
     Result:         fail
   ```
 
+## 🚀 Conclusion <a name="Conclusion"></a>
+- Someone said `Kyverno policy as code` but the code in yaml language, it's not actual programming language.
+- Using CDK8S to generate Kyverno policy help to leverage the strong programming skill of developer and structure project more efficiently.
+
 ---
 
 <h3 align="center">
