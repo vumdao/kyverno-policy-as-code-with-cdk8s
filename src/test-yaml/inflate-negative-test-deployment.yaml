@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: inflate-negative-test
+  name: inflate-negative-test
+spec:
+  selector:
+    matchLabels:
+      app: inflate-negative-test
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: inflate-negative-test
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: deployment
+                    operator: In
+                    values:
+                      - dev7
+      containers:
+        - image: public.ecr.aws/eks-distro/kubernetes/pause:3.2
+          name: inflate-negative-test
+      tolerations:
+        - effect: NoSchedule
+          key: dedicated
+          operator: Equal
+          value: dev7
+      topologySpreadConstraints:
+        - labelSelector:
+            matchLabels:
+              app: inflate-negative-test
+          maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+        - labelSelector:
+            matchLabels:
+              app: inflate-negative-test
+          maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
