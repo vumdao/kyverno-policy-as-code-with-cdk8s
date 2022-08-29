@@ -5,7 +5,7 @@ import { ClusterPolicy, ClusterPolicySpecRulesExclude, ClusterPolicySpecRulesVal
 export interface KyvernoProps {
   name: string;
   message: string;
-  namespace?: string;
+  namespaces?: Array<string>;
   action?: ClusterPolicySpecValidationFailureAction;
   kinds?: Array<string>;
   resources?: {};
@@ -19,10 +19,11 @@ export class KyvernoClusterPolicy extends Chart {
   constructor(scope: Construct, name: string, kyvernoProps: KyvernoProps) {
     super(scope, name);
 
+    const _namespace = kyvernoProps.namespaces || ['default'];
+
     new ClusterPolicy(this, `${kyvernoProps.name}`, {
       metadata: {
         name: kyvernoProps.name,
-        namespace: kyvernoProps.namespace || undefined,
         annotations: {
           'policies.kyverno.io/category': 'Pod Security Standards',
         },
@@ -33,7 +34,7 @@ export class KyvernoClusterPolicy extends Chart {
           name: kyvernoProps.name,
           match: {
             any: [{
-              resources: kyvernoProps.resources || { kinds: ['Pod'] },
+              resources: kyvernoProps.resources || { kinds: ['Pod'], namespaces: _namespace },
             }],
           },
           validate: {
