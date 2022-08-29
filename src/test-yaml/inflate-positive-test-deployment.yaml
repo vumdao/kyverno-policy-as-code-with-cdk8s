@@ -38,6 +38,7 @@ spec:
               memory: 100Mi
           securityContext:
             runAsNonRoot: true
+            runAsUser: 1000
       tolerations:
         - effect: NoSchedule
           key: dedicated
