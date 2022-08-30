@@ -29,6 +29,12 @@ spec:
       containers:
         - image: public.ecr.aws/eks-distro/kubernetes/pause:3.2
           name: inflate-positive-test
+          env:
+            - name: test
+              value: test-value
+          envFrom:
+            - configMapRef:
+                name: inflate-test-configmap
           resources:
             limits:
               cpu: 100m

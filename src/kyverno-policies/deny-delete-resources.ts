@@ -7,7 +7,7 @@ export const DENY_DELETE: KyvernoProps = {
     selector: {
       matchLabels: { protected: 'true' },
     },
-    namespace: 'default'
+    namespace: 'default',
   },
   exclude: {
     any: [{

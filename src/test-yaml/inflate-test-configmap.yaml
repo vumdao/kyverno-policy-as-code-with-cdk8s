@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+data:
+  TEST_CONFIG: test-config
+  RANDOM_VALUE: "1"
+metadata:
+  name: inflate-test-configmap
+  labels:
+    app: inflate-test-configmap

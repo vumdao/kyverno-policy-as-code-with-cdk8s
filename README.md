@@ -19,6 +19,7 @@
  * [Write code](#Write-code)
  * [Build Kyverno policy from code](#Build-keda-scaledobjects-from-code)
  * [Apply and test](#Apply-and-test)
+ * [Test Restart Deployment On Configmap Change](#Test-Restart-Deployment-On-Configmap-Change)
  * [Conclusion](#Conclusion)
 
 ---
@@ -114,11 +115,12 @@ kyverno.io
     }
     ```
 
-- This blog provides example of 4 usecases
-  1. [Deny delete objects which have label `protected: 'true'`]()
-  2. [require-app-label]()
-  3. [require-request-limit]()
-  4. [Require run-as-non-root]()
+- This blog provides example of 5 usecases
+  1. [Deny delete objects which have label `protected: 'true'`](https://github.com/vumdao/kyverno-policy-as-code-with-cdk8s/blob/master/src/kyverno-policies/deny-delete-resources.ts)
+  2. [require-app-label](https://github.com/vumdao/kyverno-policy-as-code-with-cdk8s/blob/master/src/kyverno-policies/require-app-labels.ts)
+  3. [require-request-limit](https://github.com/vumdao/kyverno-policy-as-code-with-cdk8s/blob/master/src/kyverno-policies/require-requests-limits.ts)
+  4. [Require run-as-non-root](https://github.com/vumdao/kyverno-policy-as-code-with-cdk8s/blob/master/src/kyverno-policies/require-runasnonroot.ts)
+  5. [Restart Deployment On Configmap Change]
 
 ## 🚀 **Build Kyverno policy from code** <a name="Build-Kyverno-policy-from-code"></a>
 - Source code:
@@ -221,6 +223,71 @@ kyverno.io
       UID:          b05068c1-425c-41f4-ae0f-c913100a1c9c
     Result:         fail
   ```
+
+## 🚀 **Test Restart Deployment On Configmap Change** <a name="Test-Restart-Deployment-On-Configmap-Change"></a>
+- Changing configmap require rollout restart of deployments which reference to that configmap. We can use kyverno to automate this for us.
+- Create kyverno policy to watch a `Configmap` and if it changes will write an annotation to one or more target Deployments thus triggering a new rollout and thereby refreshing the referred `Configmap`
+- First we need to grant additional privileges to the Kyverno ServiceAccount for updating `apps.deployments` resources through [`Aggregated ClusterRoles`](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#aggregated-clusterroles)
+  - Kyverno has clusterrole with `aggregationRule` which will combine all clusterrole with label `app: kyverno` into one in aggregation
+    ```
+    aggregationRule:
+      clusterRoleSelectors:
+      - matchLabels:
+          app: kyverno
+    ```
+
+  - Create new kyverno clusterrole to inject to the main one [kyverno-clusterrole.ts]().
+
+- Kyverno policy to Restart Deployment On Configmap Change: [restart-on-configmap-changes.ts]()
+
+- Rebuild project to generate manifest yaml files. `npx projen build`
+  ```
+  ⚡ $ tree dist/
+  dist/
+  ├── kyverno
+  │   ├── require-app-label-kyverno-policy.yaml
+  │   ├── require-request-limit-kyverno-policy.yaml
+  │   ├── restart-on-configmap-change-policy.yaml
+  │   └── run-as-non-root-kyverno-policy.yaml
+  └── role
+      └── kyverno-create-deployments-clusterrole.yaml
+
+  2 directories, 5 files
+  ```
+
+- Apply clusterrole and policy then test using `inflate-positive-test-deployment.yaml` and `inflate-test-configmap.yaml`
+  ```
+  ⚡ $ kv7 get cpol restart-on-configmap-change
+  NAME                          BACKGROUND   ACTION    READY
+  restart-on-configmap-change   true         audit     true
+
+  ⚡ $ kv7 get deploy -l app=inflate-positive-test
+  NAME                    READY   UP-TO-DATE   AVAILABLE   AGE
+  inflate-positive-test   1/1     1            1           62m
+
+  ⚡ $ kv7 get cm -l app=inflate-test-configmap
+  NAME                     DATA   AGE
+  inflate-test-configmap   2      64m
+  ```
+
+- We now update the configmap to see kyverno rollout restart the deployment
+  ```
+  ⚡ $ kv7 apply -f inflate-test-configmap.yaml
+  configmap/inflate-test-configmap configured
+
+  ~ $ kv7 get pod -l app=inflate-positive-test --watch
+  NAME                                     READY   STATUS    RESTARTS   AGE
+  inflate-positive-test-668477b686-cdggl   1/1     Running   0          3m3s
+  inflate-positive-test-59bb77549c-lxcjx   0/1     Pending   0          0s
+  inflate-positive-test-668477b686-cdggl   1/1     Terminating   0          3m9s
+  inflate-positive-test-59bb77549c-lxcjx   0/1     Pending       0          0s
+  inflate-positive-test-59bb77549c-lxcjx   0/1     ContainerCreating   0          0s
+  inflate-positive-test-59bb77549c-lxcjx   1/1     Running             0          1s
+  inflate-positive-test-668477b686-cdggl   1/1     Terminating         0          3m11s
+  inflate-positive-test-668477b686-cdggl   1/1     Terminating         0          3m11s
+  ```
+
+- Reference: https://kyverno.io/policies/other/restart_deployment_on_secret_change/restart_deployment_on_secret_change/
 
 ## 🚀 Conclusion <a name="Conclusion"></a>
 - Someone said `Kyverno policy as code` but the code in yaml language, it's not actual programming language.
